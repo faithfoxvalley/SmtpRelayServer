@@ -37,7 +37,15 @@ internal class Program
         await Task.Delay(60000);
 
         if (mutexActive)
-            mutex.ReleaseMutex();
+        {
+            try
+            {
+                // This throw an exception because of the async method changing the thread
+                mutex.ReleaseMutex();
+            }
+            catch (ApplicationException) { }
+
+        }
 
         return 0;
     }
