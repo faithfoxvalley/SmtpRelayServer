@@ -1,5 +1,6 @@
 ﻿using Azure.Identity;
 using Microsoft.Graph;
+using Microsoft.Graph.Drives.Item.SharedWithMe;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Users.Item.SendMail;
 using Microsoft.Identity.Client;
@@ -7,6 +8,7 @@ using MimeKit;
 using SmtpProxyServer.Config;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,9 +31,10 @@ namespace SmtpProxyServer
             this.validator = validator;
         }
 
-        public async Task<bool> SendAsync(MimeMessage mimeMessage, string smtpUser)
+        public async Task<bool> TrySendAsync(MimeMessage mimeMessage, string smtpUser)
         {
-            if (!TryConvertMessage(mimeMessage, smtpUser, out Message msg))
+            Message msg = await TryConvertMessage(mimeMessage, smtpUser);
+            if (msg == null)
                 return false;
 
             SendMailPostRequestBody sendMail = new SendMailPostRequestBody()
@@ -55,9 +58,9 @@ namespace SmtpProxyServer
             return true;
         }
 
-        private bool TryConvertMessage(MimeMessage mimeMsg, string smtpUser, out Message msg)
+        private async Task<Message> TryConvertMessage(MimeMessage mimeMsg, string smtpUser)
         {
-            msg = new()
+            Message msg = new()
             {
                 Subject = mimeMsg.Subject,
             };
@@ -70,7 +73,7 @@ namespace SmtpProxyServer
                 & !TryCopyRecipients(mimeMsg.Bcc, msg.BccRecipients))
             {
                 Log.Error("Failed to send message: No recipients");
-                return false;
+                return null;
             }
 
             MailboxAddress sender = mimeMsg.Sender;
@@ -80,7 +83,7 @@ namespace SmtpProxyServer
                 if (from == null || !validator.IsValid(from.LocalPart, from.Domain, smtpUser))
                 {
                     Log.Error("Failed to send message: No sender");
-                    return false;
+                    return null;
 
                 }
                 sender = from;
@@ -89,55 +92,73 @@ namespace SmtpProxyServer
             msg.Sender = senderObj;
             msg.From = senderObj;
 
-            string plainText = mimeMsg.TextBody;
-            if(plainText == null)
+            MimeAnalyzer mimeVisitor = new MimeAnalyzer();
+            mimeMsg.Accept(mimeVisitor);
+            
+            msg.Body = new ItemBody()
             {
-                string html = mimeMsg.HtmlBody;
-                if(html == null)
-                {
-                    string contentType = mimeMsg.Body?.ContentType?.MimeType;
-                    if(contentType == null)
-                        Log.Error("Failed to send message: Invalid email content type");
-                    else
-                        Log.Error("Failed to send message: Invalid email content type " + contentType);
-                    return false;
-                }
-                else
-                {
-                    msg.Body = new ItemBody()
-                    {
-                        ContentType = BodyType.Html,
-                        Content = html,
-                    };
-                }
-            }
-            else
-            {
-                msg.Body = new ItemBody()
-                {
-                    ContentType = BodyType.Text,
-                    Content = plainText,
-                };
-            }
-            return true;
+                ContentType = BodyType.Html,
+                Content = mimeVisitor.HtmlBody,
+            };
+
+            await AddAttachments(msg, mimeVisitor.Attachments);
+
+            return msg;
         }
 
-        private List<Attachment> GetAttachments(IEnumerable<MimeEntity> attachments)
+        // Reference: https://stackoverflow.com/questions/30351465/html-email-with-inline-attachments-and-non-inline-attachments
+        // https://learn.microsoft.com/en-us/graph/api/resources/fileattachment?view=graph-rest-1.0
+        private async Task AddAttachments(Message msg, IEnumerable<MimeEntity> attachments)
         {
-            if (attachments == null)
-                return null;
-
             List<Attachment> result = new List<Attachment>();
-            foreach(MimeEntity att in attachments)
+            foreach (MimeEntity attachment in attachments)
             {
-                if (!att.IsAttachment)
-                    continue;
+                using (MemoryStream mem = new MemoryStream())
+                {
+                    FileAttachment resultAttachment = new FileAttachment();
 
+                    ContentDisposition disposition = attachment.ContentDisposition;
+                    if (disposition == null)
+                        continue;
+                    string fileName = disposition.FileName;
+                    if (!string.IsNullOrWhiteSpace(fileName))
+                        resultAttachment.Name = fileName;
+
+                    MimeKit.ContentType contentType = attachment.ContentType;
+                    if (contentType == null)
+                        continue;
+                    resultAttachment.ContentType = contentType.MimeType;
+
+                    string contentId = attachment.ContentId;
+                    if (!string.IsNullOrWhiteSpace(contentId))
+                        resultAttachment.ContentId = contentId;
+
+                    if (attachment.IsAttachment)
+                    {
+                        msg.HasAttachments = true;
+                    }
+                    else
+                    {
+                        resultAttachment.IsInline = true;
+                        if (resultAttachment.ContentId == null)
+                            continue;
+                    }
+
+                    await attachment.WriteToAsync(mem);
+                    if (mem.Length <= 0)
+                        continue;
+
+                    resultAttachment.ContentBytes = mem.ToArray();
+                    resultAttachment.Size = resultAttachment.ContentBytes.Length;
+
+                    result.Add(resultAttachment);
+                }
             }
 
-            if (result.Count == 0)
-                return null;
-            return result;
+            if(result.Count > 0)
+            {
+                msg.Attachments = result;
+            }
         }
 
         private bool TryCopyRecipients(InternetAddressList list, List<Recipient> destination)

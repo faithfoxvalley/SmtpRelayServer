@@ -40,7 +40,7 @@ internal class Program
         {
             try
             {
-                // This throw an exception because of the async method changing the thread
+                // This might throw an exception because of the async method changing the thread
                 mutex.ReleaseMutex();
             }
             catch (ApplicationException) { }

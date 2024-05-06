@@ -78,7 +78,7 @@ namespace SmtpProxyServer
                 stream.Position = 0;
 
                 MimeKit.MimeMessage message = await MimeKit.MimeMessage.LoadAsync(stream, cancellationToken);
-                if (await emailService.SendAsync(message, context.Authentication.User))
+                if (await emailService.TrySendAsync(message, context.Authentication.User))
                     return SmtpResponse.Ok;
                 return SmtpResponse.TransactionFailed;
             }
