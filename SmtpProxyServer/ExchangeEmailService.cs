@@ -122,8 +122,10 @@ namespace SmtpProxyServer
                     if (disposition == null)
                         continue;
                     string fileName = disposition.FileName;
-                    if (!string.IsNullOrWhiteSpace(fileName))
-                        resultAttachment.Name = fileName;
+                    if (string.IsNullOrWhiteSpace(fileName))
+                        continue;
+
+                    resultAttachment.Name = fileName;
 
                     MimeKit.ContentType contentType = attachment.ContentType;
                     if (contentType == null)
@@ -145,21 +147,32 @@ namespace SmtpProxyServer
                             continue;
                     }
 
-                    await attachment.WriteToAsync(mem);
-                    if (mem.Length <= 0)
+                    bool canWriteStream = await TryWriteTo(attachment, mem);
+                    if (!canWriteStream || mem.Length <= 0)
                         continue;
 
-                    resultAttachment.ContentBytes = mem.ToArray();
-                    resultAttachment.Size = resultAttachment.ContentBytes.Length;
+                    byte[] data = mem.ToArray();
+
+                    resultAttachment.ContentBytes = data;
+                    resultAttachment.Size = data.Length;
 
                     result.Add(resultAttachment);
                 }
             }
 
             if(result.Count > 0)
-            {
                 msg.Attachments = result;
-            }
+        }
+
+        private async Task<bool> TryWriteTo(MimeEntity attachment, Stream stream)
+        {
+            if (attachment is MessagePart messagePart)
+                await messagePart.Message.WriteToAsync(stream);
+            else if (attachment is MimePart mimePart)
+                await mimePart.Content.DecodeToAsync(stream);
+            else
+                return false;
+            return true;
         }
 
         private bool TryGetRecipients(InternetAddressList list, out List<Recipient> recipients)
