@@ -65,12 +65,14 @@ namespace SmtpProxyServer
                 Subject = mimeMsg.Subject,
             };
 
-            msg.ToRecipients = new List<Recipient>();
-            msg.CcRecipients = new List<Recipient>();
-            msg.BccRecipients = new List<Recipient>();
-            if (!TryCopyRecipients(mimeMsg.To, msg.ToRecipients) 
-                & !TryCopyRecipients(mimeMsg.Cc, msg.CcRecipients)
-                & !TryCopyRecipients(mimeMsg.Bcc, msg.BccRecipients))
+            if (TryGetRecipients(mimeMsg.To, out List<Recipient> toRecipients))
+                msg.ToRecipients = toRecipients;
+            if (TryGetRecipients(mimeMsg.Cc, out List<Recipient> ccRecipients))
+                msg.CcRecipients = ccRecipients;
+            if (TryGetRecipients(mimeMsg.Bcc,out List<Recipient> bccRecipients))
+                msg.BccRecipients = bccRecipients;
+
+            if (msg.ToRecipients == null && msg.CcRecipients == null && msg.BccRecipients == null)
             {
                 Log.Error("Failed to send message: No recipients");
                 return null;
@@ -88,9 +90,8 @@ namespace SmtpProxyServer
                 }
                 sender = from;
             }
-            Recipient senderObj = CreateRecipient(sender.Address);
-            msg.Sender = senderObj;
-            msg.From = senderObj;
+            msg.Sender = CreateRecipient(sender.Address);
+            msg.From = CreateRecipient(sender.Address);
 
             MimeAnalyzer mimeVisitor = new MimeAnalyzer();
             mimeMsg.Accept(mimeVisitor);
@@ -161,8 +162,9 @@ namespace SmtpProxyServer
             }
         }
 
-        private bool TryCopyRecipients(InternetAddressList list, List<Recipient> destination)
+        private bool TryGetRecipients(InternetAddressList list, out List<Recipient> recipients)
         {
+            recipients = new List<Recipient>();
             if (list == null)
                 return false;
             foreach (InternetAddress to in list)
@@ -170,10 +172,10 @@ namespace SmtpProxyServer
                 foreach(MailboxAddress email in GetAddresses(to))
                 {
                     if(validator.IsValid(email.LocalPart, email.Domain))
-                        destination.Add(CreateRecipient(email.Address));
+                        recipients.Add(CreateRecipient(email.Address));
                 }
             }
-            return destination.Count > 0;
+            return recipients.Count > 0;
         }
 
         private IEnumerable<MailboxAddress> GetAddresses(InternetAddress address)
