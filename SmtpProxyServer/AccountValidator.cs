@@ -16,6 +16,8 @@ namespace SmtpProxyServer
 
         public AccountValidator(IEnumerable<string> domains, IEnumerable<UserAccount> accounts)
         {
+            foreach (UserAccount account in accounts)
+                account.ValidateConfig();
             this.domains = new HashSet<string>(domains.Select(x => x.ToLowerInvariant()));
             mailboxes = accounts.ToDictionary(x => x.Username, x => x.ExchangeEmail.ToLowerInvariant());
             this.accounts = accounts.ToDictionary(x => x.Username, x => x.Password);

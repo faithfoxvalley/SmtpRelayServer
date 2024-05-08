@@ -26,5 +26,14 @@ namespace SmtpProxyServer.Config
 
         public UserAccount() { }
 
+        internal void ValidateConfig()
+        {
+            if(string.IsNullOrWhiteSpace(Username))
+                throw new ArgumentNullException("username");
+            if(string.IsNullOrWhiteSpace(Password))
+                throw new ArgumentNullException("password");
+            if(string.IsNullOrWhiteSpace(ExchangeEmail))
+                throw new ArgumentNullException("exchange_email");
+        }
     }
 }
