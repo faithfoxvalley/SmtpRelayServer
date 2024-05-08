@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,18 +24,27 @@ internal class Program
             return -1;
         }
 
-        string appData = InitAppData();
-        if (!ConfigFile.TryLoad(Path.Combine(appData, "config.toml"), out ConfigFile config))
+        Assembly mainAssembly = Assembly.GetExecutingAssembly();
+        AssemblyName mainAssemblyName = mainAssembly.GetName();
+        string mainAssemblyPath = Path.GetDirectoryName(Path.GetFullPath(mainAssembly.Location));
+
+        if (!ConfigFile.TryLoad(Path.Combine(mainAssemblyPath, "config.toml"), out ConfigFile config))
             return 1;
 
+        Log.Init(Path.Combine(mainAssemblyPath, "logs", mainAssemblyName.Name + ".log"));
+
+        if (mainAssemblyName.Version != null)
+            Log.Info("Started application - v" + mainAssemblyName.Version);
+        else
+            Log.Info("Started application");
+
         AccountValidator validator = new AccountValidator(config.Smtp.EmailDomainFilter, config.UserAccount);
-
         ExchangeEmailService emailService = new ExchangeEmailService(config.Exchange, validator);
-
         SmtpService smtpServer = new SmtpService(config.Smtp, validator, emailService);
+
         await smtpServer.Start();
 
-        await Task.Delay(60000);
+        await Task.Delay(Timeout.Infinite);
 
         if (mutexActive)
         {
@@ -66,25 +76,5 @@ internal class Program
         }
 
         return true;
-    }
-
-    private static string InitAppData()
-    {
-        AssemblyName mainAssemblyName = typeof(Program).Assembly.GetName();
-        string appname = mainAssemblyName.Name;
-        string path = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!Directory.Exists(path))
-            throw new DirectoryNotFoundException("No /AppData/Local/ folder exists!");
-        path = Path.Combine(path, appname);
-        if (!Directory.Exists(path))
-            Directory.CreateDirectory(path);
-
-        Log.Init(Path.Combine(path, "Logs", appname + ".log"));
-        if (mainAssemblyName.Version != null)
-            Log.Info("Started application - v" + mainAssemblyName.Version);
-        else
-            Log.Info("Started application");
-
-        return path;
     }
 }
