@@ -38,6 +38,8 @@ internal class Program
         else
             Log.Info("Started application");
 
+        AppDomain.CurrentDomain.ProcessExit += ProcessExiting;
+
         AccountValidator validator = new AccountValidator(config.Smtp.EmailDomainFilter, config.UserAccount);
         ExchangeEmailService emailService = new ExchangeEmailService(config.Exchange, validator);
         SmtpService smtpServer = new SmtpService(config.Smtp, validator, emailService);
@@ -76,5 +78,10 @@ internal class Program
         }
 
         return true;
+    }
+
+    private static void ProcessExiting(object sender, EventArgs e)
+    {
+        Log.Info("Application closed");
     }
 }
