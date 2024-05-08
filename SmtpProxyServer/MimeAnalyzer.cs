@@ -42,12 +42,6 @@ namespace SmtpProxyServer
                 alternative[i].Accept(this);
         }
 
-        protected override void VisitMultipartRelated(MultipartRelated related)
-        {
-            // visit the root document
-            related.Root.Accept(this);
-        }
-
         // Edits html tags
         void HtmlTagCallback(HtmlTagContext ctx, HtmlWriter htmlWriter)
         {
