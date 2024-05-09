@@ -68,18 +68,25 @@ namespace SmtpProxyServer
                     return SmtpResponse.AuthenticationFailed;
                 }
 
-                await using MemoryStream stream = new MemoryStream();
-
-                SequencePosition position = buffer.GetPosition(0);
-                while (buffer.TryGet(ref position, out ReadOnlyMemory<byte> memory))
+                try
                 {
-                    await stream.WriteAsync(memory, cancellationToken);
-                }
-                stream.Position = 0;
+                    await using MemoryStream stream = new MemoryStream();
 
-                MimeKit.MimeMessage message = await MimeKit.MimeMessage.LoadAsync(stream, cancellationToken);
-                if (await emailService.TrySendAsync(message, context.Authentication.User))
-                    return SmtpResponse.Ok;
+                    SequencePosition position = buffer.GetPosition(0);
+                    while (buffer.TryGet(ref position, out ReadOnlyMemory<byte> memory))
+                    {
+                        await stream.WriteAsync(memory, cancellationToken);
+                    }
+                    stream.Position = 0;
+
+                    MimeKit.MimeMessage message = await MimeKit.MimeMessage.LoadAsync(stream, cancellationToken);
+                    if (await emailService.TrySendAsync(message, context.Authentication.User))
+                        return SmtpResponse.Ok;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "An error occurred while reading an incoming smtp message:");
+                }
                 return SmtpResponse.TransactionFailed;
             }
         }
