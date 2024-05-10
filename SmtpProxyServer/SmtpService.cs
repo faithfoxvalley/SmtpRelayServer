@@ -11,6 +11,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,25 +20,17 @@ namespace SmtpProxyServer
 {
     public class SmtpService
     {
-        private ISmtpServerOptions serverOptions;
         private readonly MessageStore messageStore;
         private readonly DomainMailboxFilter mailboxFilter;
         private readonly UserAuthenticator authenticator;
-        private readonly ExchangeEmailService emailService;
+        private readonly SmtpConfig config;
 
         public SmtpService(SmtpConfig config, AccountValidator validator, ExchangeEmailService emailService)
         {
             messageStore = new MessageStore(emailService);
             mailboxFilter = new DomainMailboxFilter(validator);
             authenticator = new UserAuthenticator(validator);
-
-            ushort port = config.Port > 0 ? config.Port : (ushort)25;
-
-            SmtpServerOptionsBuilder options = new SmtpServerOptionsBuilder()
-                .ServerName(config.HostName)
-                .Endpoint(x => x.Port(port).AuthenticationRequired(true).AllowUnsecureAuthentication(true));
-            serverOptions = options.Build();
-            this.emailService = emailService;
+            this.config = config;
         }
 
         public async Task Start()
@@ -47,7 +40,28 @@ namespace SmtpProxyServer
             serviceProvider.Add(messageStore);
             serviceProvider.Add(mailboxFilter);
 
-            SmtpServer.SmtpServer smtpServer = new SmtpServer.SmtpServer(serverOptions, serviceProvider);
+            SmtpServerOptionsBuilder options = new SmtpServerOptionsBuilder()
+                .ServerName(config.HostName);
+
+            if (string.IsNullOrWhiteSpace(config.Certificate))
+            {
+                options = options.Endpoint(x => x.Port(25).AuthenticationRequired(true).AllowUnsecureAuthentication(true));
+            }
+            else
+            {
+                byte[] data = await File.ReadAllBytesAsync(config.Certificate);
+
+                X509Certificate2 cert;
+                if (string.IsNullOrWhiteSpace(config.CertificatePassword))
+                    cert = new X509Certificate2(data);
+                else
+                    cert = new X509Certificate2(data, config.CertificatePassword);
+
+                options = options.Endpoint(x => x.Port(465).IsSecure(true).Certificate(cert));
+                options = options.Endpoint(x => x.Port(587).AuthenticationRequired(true).AllowUnsecureAuthentication(false).Certificate(cert));
+            }
+
+            SmtpServer.SmtpServer smtpServer = new SmtpServer.SmtpServer(options.Build(), serviceProvider);
             await smtpServer.StartAsync(CancellationToken.None);
         }
 
