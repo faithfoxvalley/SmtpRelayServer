@@ -1,0 +1,13 @@
+[Unit]
+Description=SMTP Proxy
+After=network.target
+
+[Service]
+WorkingDirectory=/home/austin/nexus
+ExecStart=/home/flcadmin/SmtpProxy/SmtpProxyServer
+Type=simple
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
