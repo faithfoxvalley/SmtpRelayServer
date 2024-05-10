@@ -42,7 +42,12 @@ namespace SmtpProxyServer.Config
                 return false;
             }
 
-            if(!Toml.TryToModel(documentSyntax, out ConfigFile existingConfig, out DiagnosticsBag diagnostics))
+            TomlModelOptions options = new TomlModelOptions()
+            {
+                IgnoreMissingProperties = true,
+            };
+
+            if(!Toml.TryToModel(documentSyntax, out ConfigFile existingConfig, out DiagnosticsBag diagnostics, options))
             {
                 Log.Error(DiagnosticsToString("Error reading config file:", diagnostics));
                 return false;
