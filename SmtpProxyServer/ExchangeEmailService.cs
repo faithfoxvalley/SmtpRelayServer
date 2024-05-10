@@ -5,6 +5,7 @@ using Microsoft.Graph.Models;
 using Microsoft.Graph.Users.Item.SendMail;
 using Microsoft.Identity.Client;
 using MimeKit;
+using MimeKit.Tnef;
 using SmtpProxyServer.Config;
 using System;
 using System.Collections.Generic;
@@ -50,12 +51,41 @@ namespace SmtpProxyServer
             }
             catch (Exception e)
             {
-                Log.Error($"Error while sending message from {from}: {e}");
+                Log.Error($"Error while sending message from {from} to {GetRecipientList(msg)}: {e}");
                 return false;
             }
 
-            Log.Info($"Sent message from {from}");
+            Log.Info($"Sent message from {from} to {GetRecipientList(msg)}");
             return true;
+        }
+
+        private string GetRecipientList(Message msg)
+        {
+            IEnumerable<Recipient> empty = Enumerable.Empty<Recipient>();
+            IEnumerable<Recipient> allRecipients = 
+                (msg.ToRecipients ?? empty)
+                .Concat(msg.CcRecipients ?? empty)
+                .Concat(msg.BccRecipients ?? empty);
+
+            StringBuilder sb = new StringBuilder();
+            int emailCount = 0;
+
+            foreach (Recipient recipient in allRecipients)
+            {
+                if (emailCount > 0)
+                    sb.Append(", ");
+
+                sb.Append(recipient.EmailAddress.Address);
+                emailCount++;
+
+                if (emailCount > 5)
+                {
+                    sb.Append("...");
+                    break;
+                }
+            }
+
+            return sb.ToString();
         }
 
         private async Task<Message> TryConvertMessage(MimeMessage mimeMsg, string smtpUser)
