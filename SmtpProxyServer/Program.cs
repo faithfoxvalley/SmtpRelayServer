@@ -14,6 +14,8 @@ internal class Program
     private const int AcquireMutexTimeout = 1000;
     private static Mutex mutex;
     private static bool mutexActive;
+    private static CancellationTokenSource processCancelToken = new CancellationTokenSource();
+    private static SmtpService smtpServer;
 
     private static async Task<int> Main(string[] args)
     {
@@ -42,11 +44,9 @@ internal class Program
 
         AccountValidator validator = new AccountValidator(config.Smtp.EmailDomainFilter, config.UserAccount);
         ExchangeEmailService emailService = new ExchangeEmailService(config.Exchange, validator);
-        SmtpService smtpServer = new SmtpService(config.Smtp, validator, emailService);
+        smtpServer = new SmtpService(config.Smtp, validator, emailService);
 
-        await smtpServer.Start();
-
-        await Task.Delay(Timeout.Infinite);
+        await smtpServer.Start(processCancelToken.Token);
 
         if (mutexActive)
         {
@@ -80,8 +80,11 @@ internal class Program
         return true;
     }
 
-    private static void ProcessExiting(object sender, EventArgs e)
+    private static async void ProcessExiting(object sender, EventArgs e)
     {
+        processCancelToken.Cancel();
+        if (smtpServer != null)
+            await smtpServer.WaitForExit();
         Log.Info("Application closed");
     }
 }

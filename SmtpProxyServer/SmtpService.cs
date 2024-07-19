@@ -24,6 +24,7 @@ namespace SmtpProxyServer
         private readonly DomainMailboxFilter mailboxFilter;
         private readonly UserAuthenticator authenticator;
         private readonly SmtpConfig config;
+        private SmtpServer.SmtpServer smtpServer;
 
         public SmtpService(SmtpConfig config, AccountValidator validator, ExchangeEmailService emailService)
         {
@@ -33,7 +34,7 @@ namespace SmtpProxyServer
             this.config = config;
         }
 
-        public async Task Start()
+        public async Task Start(CancellationToken cancelToken)
         {
             ServiceProvider serviceProvider = new ServiceProvider();
             serviceProvider.Add(authenticator);
@@ -61,9 +62,15 @@ namespace SmtpProxyServer
                 options = options.Endpoint(x => x.Port(587).AuthenticationRequired(true).AllowUnsecureAuthentication(false).Certificate(cert));
             }
 
-            SmtpServer.SmtpServer smtpServer = new SmtpServer.SmtpServer(options.Build(), serviceProvider);
-            await smtpServer.StartAsync(CancellationToken.None);
+            smtpServer = new SmtpServer.SmtpServer(options.Build(), serviceProvider);
+            await smtpServer.StartAsync(cancelToken);
         }
+
+        public Task WaitForExit()
+        {
+            return smtpServer.ShutdownTask;
+        }
+
 
         public class MessageStore : IMessageStore
         {
