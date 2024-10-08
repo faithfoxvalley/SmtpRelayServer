@@ -15,10 +15,7 @@ namespace SmtpProxyServer
         public ConnectionSubnetValidator(IEnumerable<string> subnetMasks) 
         {
             foreach (string subnetMask in subnetMasks)
-            {
-                if (Subnet.TryParse(subnetMask, out Subnet subnet))
-                    subnets.Add(subnet);
-            }
+                subnets.Add(Subnet.Parse(subnetMask));
         }
 
         public bool IsValid(IPAddress address)
@@ -44,22 +41,30 @@ namespace SmtpProxyServer
 
         internal bool IsValid(ISessionContext context)
         {
-            if(context.Properties == null || !context.Properties.TryGetValue("EndpointListener:RemoteEndPoint", out object contextProp))
+            if (subnets.Count == 0)
+                return true;
+
+            if (context.Properties == null || !context.Properties.TryGetValue("EndpointListener:RemoteEndPoint", out object contextProp))
+            {
+                Log.Warn("Failed to get remote address for connection");
                 return false;
+            }
             return contextProp is IPEndPoint endpoint && IsValid(endpoint.Address);
         }
 
         private class Subnet
         {
-            private IPAddress maskAddress;
-            private int maskLength;
+            private readonly IPAddress maskAddress;
+            private readonly int maskLength;
 
-            private Subnet() { }
-
-            public static bool TryParse(string subnetMask, out Subnet subnetObject)
+            public Subnet(IPAddress maskAddress, int maskLength)
             {
-                subnetObject = null;
+                this.maskAddress = maskAddress;
+                this.maskLength = maskLength;
+            }
 
+            public static Subnet Parse(string subnetMask)
+            {
                 int slashIdx = subnetMask.IndexOf("/");
                 if (slashIdx == -1) // We only handle netmasks in format "IP/PrefixLength".
                     throw new NotSupportedException("Only SubNetMasks with a given prefix length are supported.");
@@ -82,10 +87,7 @@ namespace SmtpProxyServer
                 if (maskLength < 0)
                     throw new NotSupportedException("A Subnetmask should not be less than 0.");
 
-                subnetObject = new Subnet();
-                subnetObject.maskAddress = maskAddress;
-                subnetObject.maskLength = maskLength;
-                return true;
+                return new Subnet(maskAddress, maskLength);
             }
 
             public bool Contains(IPAddress address)
