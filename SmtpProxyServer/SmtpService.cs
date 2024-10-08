@@ -3,16 +3,12 @@ using SmtpServer;
 using SmtpServer.Authentication;
 using SmtpServer.ComponentModel;
 using SmtpServer.Mail;
-using SmtpServer.Net;
 using SmtpServer.Protocol;
 using SmtpServer.Storage;
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -28,9 +24,11 @@ namespace SmtpProxyServer
 
         public SmtpService(SmtpConfig config, AccountValidator validator, ExchangeEmailService emailService)
         {
+            ConnectionSubnetValidator connectionValidator = new ConnectionSubnetValidator(config.ConnectionSubnetFilter);
+
             messageStore = new MessageStore(emailService);
             mailboxFilter = new DomainMailboxFilter(validator);
-            authenticator = new UserAuthenticator(validator);
+            authenticator = new UserAuthenticator(validator, connectionValidator);
             this.config = config;
         }
 
@@ -151,15 +149,17 @@ namespace SmtpProxyServer
         private class UserAuthenticator : IUserAuthenticator
         {
             private readonly AccountValidator validator;
+            private readonly ConnectionSubnetValidator connectionValidator;
 
-            public UserAuthenticator(AccountValidator validator)
+            public UserAuthenticator(AccountValidator validator, ConnectionSubnetValidator connectionValidator)
             {
                 this.validator = validator;
+                this.connectionValidator = connectionValidator;
             }
 
             public Task<bool> AuthenticateAsync(ISessionContext context, string user, string password, CancellationToken cancellationToken)
             {
-                return Task.FromResult(validator.IsValidLogin(user, password));
+                return Task.FromResult(connectionValidator.IsValid(context) && validator.IsValidLogin(user, password));
             }
         }
     }

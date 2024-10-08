@@ -12,6 +12,7 @@ namespace SmtpProxyServer.Config
     {
         public string HostName { get; set; } = "localhost";
         public List<string> EmailDomainFilter { get; set; } = new List<string>();
+        public List<string> ConnectionSubnetFilter { get; set; } = new List<string>();
         public string Certificate { get; set; } = "";
         public string CertificatePassword { get; set; } = "";
 
