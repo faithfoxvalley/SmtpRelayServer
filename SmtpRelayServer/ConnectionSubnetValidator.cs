@@ -6,7 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 
-namespace SmtpProxyServer
+namespace SmtpRelayServer
 {
     internal class ConnectionSubnetValidator
     {

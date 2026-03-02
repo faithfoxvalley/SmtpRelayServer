@@ -1,10 +1,10 @@
 [Unit]
-Description=SMTP Proxy
+Description=SMTP Relay
 After=network.target
 
 [Service]
-WorkingDirectory=/home/austin/nexus
-ExecStart=/home/flcadmin/SmtpProxy/SmtpProxyServer
+WorkingDirectory=/home/user/smtprelay
+ExecStart=/home/flcadmin/smtprelay/SmtpRelayServer
 Type=simple
 Restart=always
 RestartSec=10

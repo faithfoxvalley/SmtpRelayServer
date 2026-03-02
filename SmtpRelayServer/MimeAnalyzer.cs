@@ -10,7 +10,7 @@ using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SmtpProxyServer
+namespace SmtpRelayServer
 {
     // Reference: https://mimekit.net/docs/html/Working-With-Messages.htm
     internal class MimeAnalyzer : MimeVisitor

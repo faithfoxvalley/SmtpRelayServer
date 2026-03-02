@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using Tomlyn.Model;
 using static Org.BouncyCastle.Math.EC.ECCurve;
 
-namespace SmtpProxyServer.Config
+namespace SmtpRelayServer.Config
 {
     public class UserAccount : ITomlMetadataProvider
     {

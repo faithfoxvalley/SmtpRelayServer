@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Graph.Models;
-using SmtpProxyServer.Config;
+using SmtpRelayServer.Config;
 
-namespace SmtpProxyServer
+namespace SmtpRelayServer
 {
     public class AccountValidator
     {

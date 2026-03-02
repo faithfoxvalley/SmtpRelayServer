@@ -1,4 +1,4 @@
-﻿using SmtpProxyServer.Config;
+﻿using SmtpRelayServer.Config;
 using SmtpServer;
 using SmtpServer.Authentication;
 using SmtpServer.ComponentModel;
@@ -12,7 +12,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SmtpProxyServer
+namespace SmtpRelayServer
 {
     public class SmtpService
     {

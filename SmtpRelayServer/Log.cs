@@ -4,7 +4,7 @@ using Serilog.Events;
 using Serilog.Templates;
 using System;
 
-namespace SmtpProxyServer
+namespace SmtpRelayServer
 {
     public static class Log
     {

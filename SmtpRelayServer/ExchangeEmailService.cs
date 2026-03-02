@@ -6,7 +6,7 @@ using Microsoft.Graph.Users.Item.SendMail;
 using Microsoft.Identity.Client;
 using MimeKit;
 using MimeKit.Tnef;
-using SmtpProxyServer.Config;
+using SmtpRelayServer.Config;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,7 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SmtpProxyServer
+namespace SmtpRelayServer
 {
     public class ExchangeEmailService
     {

@@ -6,7 +6,7 @@ using Tomlyn;
 using Tomlyn.Model;
 using Tomlyn.Syntax;
 
-namespace SmtpProxyServer.Config
+namespace SmtpRelayServer.Config
 {
     public class ConfigFile : ITomlMetadataProvider
     {
