@@ -36,11 +36,11 @@ internal class Program
         Log.Init(Path.Combine(mainAssemblyPath, "logs", mainAssemblyName.Name + ".log"));
 
         if (mainAssemblyName.Version != null)
-            Log.Info("Started application - v" + mainAssemblyName.Version);
+            Log.Info("Started application - v" + mainAssemblyName.Version.ToString(3));
         else
             Log.Info("Started application");
 
-        AppDomain.CurrentDomain.ProcessExit += ProcessExiting;
+        HookProcessClosing();
 
         AccountValidator validator = new AccountValidator(config.Smtp.EmailDomainFilter, config.UserAccount);
         ExchangeEmailService emailService = new ExchangeEmailService(config.Exchange, validator);
@@ -59,6 +59,7 @@ internal class Program
 
         }
 
+        Log.Info("Application stopped");
         return 0;
     }
 
@@ -80,11 +81,18 @@ internal class Program
         return true;
     }
 
-    private static async void ProcessExiting(object sender, EventArgs e)
+    private static void HookProcessClosing()
     {
+        PosixSignalRegistration.Create(PosixSignal.SIGINT, ExitRequested);
+        PosixSignalRegistration.Create(PosixSignal.SIGHUP, ExitRequested);
+        PosixSignalRegistration.Create(PosixSignal.SIGTERM, ExitRequested);
+    }
+
+    private static async void ExitRequested(PosixSignalContext context)
+    {
+        Log.Info($"Application stop requested ({context.Signal})");
         processCancelToken.Cancel();
         if (smtpServer != null)
             await smtpServer.WaitForExit();
-        Log.Info("Application closed");
     }
 }
