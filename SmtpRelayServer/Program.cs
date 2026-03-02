@@ -1,8 +1,6 @@
-﻿using SmtpRelayServer;
-using SmtpRelayServer.Config;
+﻿using SmtpRelayServer.Config;
 using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -19,7 +17,7 @@ internal class Program
     private static CancellationTokenSource processCancelToken = new CancellationTokenSource();
     private static SmtpService smtpServer;
 
-    private static async Task<int> Main(string[] args)
+    private static async Task<int> Main()
     {
         if (!IsOnlyInstance())
         {

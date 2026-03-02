@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 WorkingDirectory=/home/user/smtprelay
-ExecStart=/home/flcadmin/smtprelay/SmtpRelayServer
+ExecStart=/home/user/smtprelay/SmtpRelayServer
 Type=simple
 Restart=always
 RestartSec=10
