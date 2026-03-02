@@ -90,7 +90,7 @@ internal class Program
 
     private static async void ExitRequested(PosixSignalContext context)
     {
-        Log.Info($"Application stop requested ({context.Signal})");
+        Log.Info($"Application stop requested ({context?.Signal.ToString() ?? ""})");
         processCancelToken.Cancel();
         if (smtpServer != null)
             await smtpServer.WaitForExit();

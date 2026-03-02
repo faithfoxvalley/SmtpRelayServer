@@ -42,22 +42,14 @@ public class SmtpService
         SmtpServerOptionsBuilder options = new SmtpServerOptionsBuilder()
             .ServerName(config.HostName);
 
-        if (string.IsNullOrWhiteSpace(config.Certificate))
+        if (config.TryReadCertificate(out X509Certificate2 cert))
         {
-            options = options.Endpoint(x => x.Port(25).AuthenticationRequired(true).AllowUnsecureAuthentication(true));
+            options = options.Endpoint(x => x.Port(465).IsSecure(true).Certificate(cert));
+            options = options.Endpoint(x => x.Port(587).AuthenticationRequired(true).AllowUnsecureAuthentication(false).Certificate(cert));
         }
         else
         {
-            byte[] data = await File.ReadAllBytesAsync(config.Certificate);
-
-            X509Certificate2 cert;
-            if (string.IsNullOrWhiteSpace(config.CertificatePassword))
-                cert = new X509Certificate2(data);
-            else
-                cert = new X509Certificate2(data, config.CertificatePassword);
-
-            options = options.Endpoint(x => x.Port(465).IsSecure(true).Certificate(cert));
-            options = options.Endpoint(x => x.Port(587).AuthenticationRequired(true).AllowUnsecureAuthentication(false).Certificate(cert));
+            options = options.Endpoint(x => x.Port(25).AuthenticationRequired(true).AllowUnsecureAuthentication(true));
         }
 
         smtpServer = new SmtpServer.SmtpServer(options.Build(), serviceProvider);
