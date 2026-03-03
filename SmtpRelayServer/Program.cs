@@ -36,7 +36,7 @@ internal class Program
         if(docker)
         {
             Log.Init();
-            config = ConfigFile.Load(null, EnvPrefix);
+            config = ConfigFile.Load("/data/config.toml", EnvPrefix);
         }
         else
         {

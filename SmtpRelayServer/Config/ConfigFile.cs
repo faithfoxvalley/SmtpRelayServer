@@ -42,17 +42,23 @@ public class ConfigFile : ITomlMetadataProvider
     private static bool TryGetTomlConfig(string fileLocation, out IConfiguration config)
     {
         config = null;
-        if(string.IsNullOrEmpty(fileLocation)  || !File.Exists(fileLocation))
+        if(string.IsNullOrEmpty(fileLocation))
             return false;
+
+        ConfigFile tomlOnlyMap = new ConfigFile();
+        tomlOnlyMap.fileLocation = fileLocation;
+
+        if (!File.Exists(fileLocation))
+        {
+            tomlOnlyMap.Save();
+            return false;
+        }
 
         IConfigurationBuilder builder = new ConfigurationBuilder()
             .AddTomlFile(fileLocation, true, false);
 
         config = builder.Build().RemoveUnderscores();
-
-        ConfigFile tomlOnlyMap = new ConfigFile();
         config.Bind(tomlOnlyMap);
-        tomlOnlyMap.fileLocation = fileLocation;
         tomlOnlyMap.Save();
         return true;
     }
