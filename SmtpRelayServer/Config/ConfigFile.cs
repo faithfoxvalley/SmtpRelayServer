@@ -1,10 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Text;
 using Tomlyn;
+using Tomlyn.Extensions.Configuration;
 using Tomlyn.Model;
-using Tomlyn.Syntax;
 
 namespace SmtpRelayServer.Config;
 
@@ -21,51 +21,40 @@ public class ConfigFile : ITomlMetadataProvider
     [IgnoreDataMember]
     public TomlPropertiesMetadata PropertiesMetadata { get; set; }
 
-    public static bool TryLoad(string fileLocation, out ConfigFile config)
+    public static ConfigFile Load(string fileLocation, string envPrefix)
     {
-        config = null;
+        IConfigurationBuilder builder = new ConfigurationBuilder();
 
-        if (!File.Exists(fileLocation))
+        ConfigFile result = new ConfigFile();
+        if (TryGetTomlConfig(fileLocation, out IConfiguration tomlconfig))
         {
-
-            ConfigFile newFile = new ConfigFile();
-            newFile.fileLocation = fileLocation;
-            newFile.Save();
-            config = newFile;
-            return true;
+            builder = builder.AddConfiguration(tomlconfig);
+            result.fileLocation = fileLocation;
         }
 
-        DocumentSyntax documentSyntax = Toml.Parse(File.ReadAllText(fileLocation), fileLocation, TomlParserOptions.ParseAndValidate);
-        if(documentSyntax.HasErrors)
-        {
-            Log.Error(DiagnosticsToString("Syntax error in config file:", documentSyntax.Diagnostics));
-            return false;
-        }
+        builder = builder.AddEnvironmentVariables(envPrefix);
 
-        TomlModelOptions options = new TomlModelOptions()
-        {
-            IgnoreMissingProperties = true,
-        };
-
-        if(!Toml.TryToModel(documentSyntax, out ConfigFile existingConfig, out DiagnosticsBag diagnostics, options))
-        {
-            Log.Error(DiagnosticsToString("Error reading config file:", diagnostics));
-            return false;
-        }
-
-        config = existingConfig;
-        config.fileLocation = fileLocation;
-        config.Save();
-        return true;
+        IConfiguration config = builder.Build();
+        config.Bind(result);
+        return result;
     }
 
-    private static string DiagnosticsToString(string prefix, DiagnosticsBag diagnostics)
+    private static bool TryGetTomlConfig(string fileLocation, out IConfiguration config)
     {
-        StringBuilder sb = new StringBuilder();
-        sb.Append(prefix).AppendLine(); ;
-        foreach (DiagnosticMessage diag in diagnostics)
-            sb.Append(diag).AppendLine();
-        return sb.ToString();
+        config = null;
+        if(string.IsNullOrEmpty(fileLocation)  || !File.Exists(fileLocation))
+            return false;
+
+        IConfigurationBuilder builder = new ConfigurationBuilder()
+            .AddTomlFile(fileLocation, true, false);
+
+        config = builder.Build().RemoveUnderscores();
+
+        ConfigFile tomlOnlyMap = new ConfigFile();
+        config.Bind(tomlOnlyMap);
+        tomlOnlyMap.fileLocation = fileLocation;
+        tomlOnlyMap.Save();
+        return true;
     }
 
     public void Save(string fileLocation = null)
@@ -73,6 +62,11 @@ public class ConfigFile : ITomlMetadataProvider
         if (fileLocation == null)
             fileLocation = this.fileLocation;
 
+        string folder = Path.GetDirectoryName(fileLocation);
+        if (!string.IsNullOrWhiteSpace(folder))
+            Directory.CreateDirectory(folder);
         File.WriteAllText(fileLocation, Toml.FromModel(this));
     }
+
+
 }

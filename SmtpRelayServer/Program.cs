@@ -1,6 +1,7 @@
 ﻿using SmtpRelayServer.Config;
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -10,6 +11,7 @@ namespace SmtpRelayServer;
 
 internal class Program
 {
+    private const string EnvPrefix = "RELAY_";
     private const string AppGuid = "6611d02c-4e11-49ed-ba56-160fba027479";
     private const int AcquireMutexTimeout = 1000;
     private static Mutex mutex;
@@ -17,7 +19,7 @@ internal class Program
     private static CancellationTokenSource processCancelToken = new CancellationTokenSource();
     private static SmtpService smtpServer;
 
-    private static async Task<int> Main()
+    private static async Task<int> Main(string[] args)
     {
         if (!IsOnlyInstance())
         {
@@ -25,16 +27,24 @@ internal class Program
             await Task.Delay(5000);
             return -1;
         }
-
+        
         Assembly mainAssembly = Assembly.GetExecutingAssembly();
         AssemblyName mainAssemblyName = mainAssembly.GetName();
-        string mainAssemblyPath = Path.GetDirectoryName(Path.GetFullPath(mainAssembly.Location));
 
-        if (!ConfigFile.TryLoad(Path.Combine(mainAssemblyPath, "config.toml"), out ConfigFile config))
-            return 1;
-
-        Log.Init(Path.Combine(mainAssemblyPath, "logs", mainAssemblyName.Name + ".log"));
-
+        ConfigFile config;
+        bool docker = args?.Any(x => x.Equals("--docker", StringComparison.InvariantCultureIgnoreCase)) == true;
+        if(docker)
+        {
+            Log.Init();
+            config = ConfigFile.Load(null, EnvPrefix);
+        }
+        else
+        {
+            string dataPath = Path.GetDirectoryName(Path.GetFullPath(mainAssembly.Location));
+            Log.Init(Path.Combine(dataPath, "logs", mainAssemblyName.Name + ".log"));
+            config = ConfigFile.Load(Path.Combine(dataPath, "config.toml"), EnvPrefix);
+        }
+        
         if (mainAssemblyName.Version != null)
             Log.Info("Started application - v" + mainAssemblyName.Version.ToString(3));
         else
@@ -65,7 +75,7 @@ internal class Program
 
     private static bool IsOnlyInstance()
     {
-        mutex = new Mutex(true, AppGuid, out mutexActive);
+        mutex = new Mutex(true, "Global\\" + AppGuid, out mutexActive);
         if (!mutexActive)
         {
             try

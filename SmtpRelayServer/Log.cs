@@ -10,20 +10,23 @@ public static class Log
 {
     private static Logger log;
 
-    public static void Init(string file)
+    public static void Init(string file = null)
     {
         AppDomain.CurrentDomain.UnhandledException += UnhandledException;
 
 
         ExpressionTemplate format = new ExpressionTemplate("{@t:HH:mm:ss} [{@l:u3}] [{ThreadID}]{CustomPrefix} {@m} {@x}\n");
-        log = new LoggerConfiguration()
+        LoggerConfiguration logConfig = new LoggerConfiguration()
             .Enrich.With(new ThreadIDEnricher())
 #if DEBUG
             .WriteTo.Debug(format)
 #endif
-            .WriteTo.Console(format)
-            .WriteTo.File(format, file, rollingInterval: RollingInterval.Day)
-            .CreateLogger();
+            .WriteTo.Console(format);
+
+        if (file != null)
+            logConfig = logConfig.WriteTo.File(format, file, rollingInterval: RollingInterval.Day);
+
+        log = logConfig.CreateLogger();
 
 
     }
